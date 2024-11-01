@@ -10,6 +10,8 @@ export 'package:horizontal_data_table/refresh/hdt_refresh_controller.dart';
 export 'package:horizontal_data_table/refresh/pull_to_refresh/pull_to_refresh.dart';
 
 ///Main File
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:horizontal_data_table/model/scroll_shadow_model.dart';
 import 'package:horizontal_data_table/refresh/hdt_refresh_controller.dart';
@@ -437,15 +439,20 @@ class _HorizontalDataTableState extends State<HorizontalDataTable> {
               selector: (context, scrollShadowModel) {
             return scrollShadowModel.horizontalOffset;
           }, builder: (context, horizontalOffset, child) {
-            return Container(
-              width: ScrollShadowModel.getElevation(
-                  horizontalOffset, widget.elevation),
-              height: height,
-              color: widget.elevationColor.withAlpha(
+            final elevation = ScrollShadowModel.getElevation(
+              horizontalOffset,
+              widget.elevation,
+            );
+            return StackedVerticalShadow(
+              width: elevation,
+              shadowColor: widget.elevationColor.withAlpha(
                 ScrollShadowModel.getShadowAlpha(
-                    ScrollShadowModel.getElevation(
-                        horizontalOffset, widget.elevation),
-                    widget.elevation),
+                  ScrollShadowModel.getElevation(
+                    horizontalOffset,
+                    widget.elevation,
+                  ),
+                  widget.elevation,
+                ),
               ),
             );
           }),
@@ -500,12 +507,17 @@ class _HorizontalDataTableState extends State<HorizontalDataTable> {
             },
             builder: (context, verticalOffset, child) {
               double elevation = ScrollShadowModel.getElevation(
-                  verticalOffset, widget.elevation);
-              return Container(
-                color: widget.elevationColor.withAlpha(
-                    ScrollShadowModel.getShadowAlpha(
-                        elevation, widget.elevation)),
+                verticalOffset,
+                widget.elevation,
+              );
+              return StackedHorizontalShadow(
                 height: elevation,
+                shadowColor: widget.elevationColor.withAlpha(
+                  ScrollShadowModel.getShadowAlpha(
+                    elevation,
+                    widget.elevation,
+                  ),
+                ),
               );
             },
           ),
@@ -526,11 +538,15 @@ class _HorizontalDataTableState extends State<HorizontalDataTable> {
                         verticalOffset,
                     widget.elevation);
               }
-              return Container(
-                color: widget.elevationColor.withAlpha(
-                    ScrollShadowModel.getShadowAlpha(
-                        elevation, widget.elevation)),
+              return StackedHorizontalShadow(
+                alignTop: false,
                 height: elevation,
+                shadowColor: widget.elevationColor.withAlpha(
+                  ScrollShadowModel.getShadowAlpha(
+                    elevation,
+                    widget.elevation,
+                  ),
+                ),
               );
             },
           ),
@@ -636,12 +652,17 @@ class _HorizontalDataTableState extends State<HorizontalDataTable> {
             },
             builder: (context, verticalOffset, child) {
               double elevation = ScrollShadowModel.getElevation(
-                  verticalOffset, widget.elevation);
-              return Container(
-                color: widget.elevationColor.withAlpha(
-                    ScrollShadowModel.getShadowAlpha(
-                        elevation, widget.elevation)),
+                verticalOffset,
+                widget.elevation,
+              );
+              return StackedHorizontalShadow(
                 height: elevation,
+                shadowColor: widget.elevationColor.withAlpha(
+                  ScrollShadowModel.getShadowAlpha(
+                    elevation,
+                    widget.elevation,
+                  ),
+                ),
               );
             },
           ),
@@ -662,11 +683,15 @@ class _HorizontalDataTableState extends State<HorizontalDataTable> {
                         verticalOffset,
                     widget.elevation);
               }
-              return Container(
-                color: widget.elevationColor.withAlpha(
-                    ScrollShadowModel.getShadowAlpha(
-                        elevation, widget.elevation)),
+              return StackedHorizontalShadow(
+                alignTop: false,
                 height: elevation,
+                shadowColor: widget.elevationColor.withAlpha(
+                  ScrollShadowModel.getShadowAlpha(
+                    elevation,
+                    widget.elevation,
+                  ),
+                ),
               );
             },
           ),
@@ -784,6 +809,97 @@ class _HorizontalDataTableState extends State<HorizontalDataTable> {
         indexedWidgetBuilder,
         itemCount,
         children,
+      ),
+    );
+  }
+}
+
+/// Use [ImageFilter] with solid color layer to create shadow effect.
+class StackedHorizontalShadow extends StatelessWidget {
+  final double height;
+  final Color shadowColor;
+  final bool alignTop;
+
+  const StackedHorizontalShadow({
+    super.key,
+    required this.height,
+    required this.shadowColor,
+    this.alignTop = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRect(
+      child: Container(
+        height: height,
+        child: Stack(
+          children: [
+            Align(
+              alignment:
+                  alignTop ? Alignment.topCenter : Alignment.bottomCenter,
+              child: FractionallySizedBox(
+                heightFactor: 0.5,
+                child: Container(
+                  color: shadowColor,
+                ),
+              ),
+            ),
+            FractionallySizedBox(
+              heightFactor: 0.5,
+              child: ImageFiltered(
+                imageFilter: ImageFilter.blur(
+                  sigmaX: 3,
+                  sigmaY: 3,
+                ),
+                child: Container(
+                  color: shadowColor,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class StackedVerticalShadow extends StatelessWidget {
+  final double width;
+  final Color shadowColor;
+
+  const StackedVerticalShadow({
+    super.key,
+    required this.width,
+    required this.shadowColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRect(
+      child: Container(
+        width: width,
+        child: Stack(
+          children: [
+            FractionallySizedBox(
+              widthFactor: 0.5,
+              child: Container(
+                color: shadowColor,
+              ),
+            ),
+            FractionallySizedBox(
+              widthFactor: 0.5,
+              child: ImageFiltered(
+                imageFilter: ImageFilter.blur(
+                  sigmaX: 3,
+                  sigmaY: 3,
+                ),
+                child: Container(
+                  color: shadowColor,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -17,7 +17,7 @@ class SimpleTablePage extends StatefulWidget {
 class _SimpleTablePageState extends State<SimpleTablePage> {
   @override
   void initState() {
-    widget.user.initData(3000);
+    widget.user.initData(20);
     super.initState();
   }
 
@@ -30,16 +30,9 @@ class _SimpleTablePageState extends State<SimpleTablePage> {
         rightHandSideColumnWidth: 600,
         isFixedHeader: true,
         headerWidgets: _getTitleWidget(),
-        isFixedFooter: true,
-        footerWidgets: _getTitleWidget(),
         leftSideItemBuilder: _generateFirstColumnRow,
         rightSideItemBuilder: _generateRightHandSideColumnRow,
         itemCount: widget.user.userInfo.length,
-        rowSeparatorWidget: const Divider(
-          color: Colors.black38,
-          height: 1.0,
-          thickness: 0.0,
-        ),
         leftHandSideColBackgroundColor: const Color(0xFFFFFFFF),
         rightHandSideColBackgroundColor: const Color(0xFFFFFFFF),
         itemExtent: 55,
