@@ -51,6 +51,11 @@ class HorizontalDataTable extends StatefulWidget {
   final bool isFixedHeader;
   final List<Widget>? headerWidgets;
 
+  /// A widget that is displayed at the end of the header row.
+  final Widget? headerEndFloatingWidget;
+  final BoxShadow? headerEndFloatingWidgetShadow;
+  final EdgeInsets? headerEndFloatingWidgetMargin;
+
   ///if isFixedFooter==true,
   ///HorizontalDataTable.footerWidgets[0] as the fixed side footer
   ///
@@ -144,6 +149,8 @@ class HorizontalDataTable extends StatefulWidget {
   ///This is a wrapper controller for limiting using the available refresh and load new data controller function. Currently only refresh and load fail and complete are implemented.
   final HDTRefreshController? htdRefreshController;
 
+  final ValueChanged<bool>? onFixedHeaderScrollableStateChanged;
+
   ///Enable Right to Left mode
   final bool enableRTL;
 
@@ -157,6 +164,9 @@ class HorizontalDataTable extends StatefulWidget {
     this.tableHeight,
     this.isFixedHeader = false,
     this.headerWidgets,
+    this.headerEndFloatingWidget,
+    this.headerEndFloatingWidgetShadow,
+    this.headerEndFloatingWidgetMargin,
     this.isFixedFooter = false,
     this.footerWidgets,
     IndexedWidgetBuilder? leftSideItemBuilder,
@@ -188,6 +198,7 @@ class HorizontalDataTable extends StatefulWidget {
     this.fixedSidePlaceHolderLoadIndicator,
     this.scrollPhysics,
     this.horizontalScrollPhysics,
+    this.onFixedHeaderScrollableStateChanged,
     this.enableRTL = false,
     this.itemExtent,
   })  : this.fixedSideColumnWidth = leftHandSideColumnWidth,
@@ -244,6 +255,9 @@ class HorizontalDataTable extends StatefulWidget {
     double? tableHeight,
     bool isFixedHeader = false,
     List<Widget>? headerWidgets,
+    Widget? headerEndFloatingWidget,
+    BoxShadow? headerEndFloatingWidgetShadow,
+    EdgeInsets? headerEndFloatingWidgetMargin,
     bool isFixedFooter = false,
     List<Widget>? footerWidgets,
     Widget Function(BuildContext, int)? leftSideItemBuilder,
@@ -275,6 +289,7 @@ class HorizontalDataTable extends StatefulWidget {
     LoadIndicator? fixedSidePlaceHolderLoadIndicator,
     ScrollPhysics? scrollPhysics,
     ScrollPhysics? horizontalScrollPhysics,
+    ValueChanged<bool>? onFixedHeaderScrollableStateChanged,
     double? itemExtent,
   }) : this(
           leftHandSideColumnWidth: rightHandSideColumnWidth,
@@ -282,6 +297,9 @@ class HorizontalDataTable extends StatefulWidget {
           tableHeight: tableHeight,
           isFixedHeader: isFixedHeader,
           headerWidgets: headerWidgets,
+          headerEndFloatingWidget: headerEndFloatingWidget,
+          headerEndFloatingWidgetShadow: headerEndFloatingWidgetShadow,
+          headerEndFloatingWidgetMargin: headerEndFloatingWidgetMargin,
           isFixedFooter: isFixedFooter,
           footerWidgets: footerWidgets,
           leftSideItemBuilder: rightSideItemBuilder,
@@ -310,6 +328,8 @@ class HorizontalDataTable extends StatefulWidget {
           fixedSidePlaceHolderLoadIndicator: fixedSidePlaceHolderLoadIndicator,
           scrollPhysics: scrollPhysics,
           horizontalScrollPhysics: horizontalScrollPhysics,
+          onFixedHeaderScrollableStateChanged:
+              onFixedHeaderScrollableStateChanged,
           enableRTL: true,
           itemExtent: itemExtent,
         );
@@ -324,6 +344,8 @@ class _HorizontalDataTableState extends State<HorizontalDataTable> {
   late TableControllers _tableControllers;
   ScrollShadowModel _scrollShadowModel = ScrollShadowModel();
 
+  bool _horizontalScrolledToEnd = false;
+
   @override
   void initState() {
     super.initState();
@@ -336,6 +358,18 @@ class _HorizontalDataTableState extends State<HorizontalDataTable> {
     );
 
     _tableControllers.init();
+
+    if (widget.isFixedHeader) {
+      final controller =
+          _tableControllers.bidirectionalSideHeaderHorizontalScrollController!;
+      // Call callback to notify for initial state after scroll controller is attached
+      WidgetsBinding.instance.addPostFrameCallback((timestamp) {
+        _horizontalScrollEndListener(controller);
+      });
+      _tableControllers.addHorizontalEndShadowListener(() {
+        _horizontalScrollEndListener(controller, true);
+      });
+    }
 
     _tableControllers.addHorizontalShadowListener(() {
       _scrollShadowModel.horizontalOffset =
@@ -351,6 +385,17 @@ class _HorizontalDataTableState extends State<HorizontalDataTable> {
       widget.onScrollControllerReady!(
           _tableControllers.bidirectionalSideListViewScrollController,
           _tableControllers.bidirectionalSideHorizontalScrollController);
+    }
+  }
+
+  void _horizontalScrollEndListener(ScrollController controller,
+      [bool initialized = false]) {
+    final reachedEnd =
+        controller.position.pixels == controller.position.maxScrollExtent;
+    if (_horizontalScrolledToEnd != reachedEnd || !initialized) {
+      _horizontalScrolledToEnd = reachedEnd;
+      _scrollShadowModel.floatingHeaderShadow = reachedEnd;
+      widget.onFixedHeaderScrollableStateChanged?.call(reachedEnd);
     }
   }
 
@@ -572,12 +617,43 @@ class _HorizontalDataTableState extends State<HorizontalDataTable> {
         if (widget.isFixedHeader)
           LayoutId(
             id: ListViewLayout.Header,
-            child: SingleChildScrollView(
-              physics: widget.horizontalScrollPhysics,
-              controller: _tableControllers
-                  .bidirectionalSideHeaderHorizontalScrollController!,
-              scrollDirection: Axis.horizontal,
-              child: header!,
+            child: Stack(
+              children: [
+                SingleChildScrollView(
+                  physics: widget.horizontalScrollPhysics,
+                  controller: _tableControllers
+                      .bidirectionalSideHeaderHorizontalScrollController!,
+                  scrollDirection: Axis.horizontal,
+                  child: header!,
+                ),
+                if (widget.headerEndFloatingWidget != null)
+                  Selector<ScrollShadowModel, bool>(
+                    selector: (context, floatingHeaderShadow) {
+                      return _scrollShadowModel.floatingHeaderShadow;
+                    },
+                    builder: (context, hasShadow, child) {
+                      return Positioned(
+                        right: 0,
+                        child: Container(
+                          alignment: Alignment.center,
+                          margin: widget.headerEndFloatingWidgetMargin,
+                          decoration: BoxDecoration(
+                            boxShadow: [
+                              if (!hasShadow)
+                                widget.headerEndFloatingWidgetShadow ??
+                                    const BoxShadow(
+                                      color: Color(0x290D072F),
+                                      offset: Offset(-2, -4),
+                                      blurRadius: 5,
+                                    ),
+                            ],
+                          ),
+                          child: widget.headerEndFloatingWidget!,
+                        ),
+                      );
+                    },
+                  ),
+              ],
             ),
           ),
         if (widget.isFixedHeader)

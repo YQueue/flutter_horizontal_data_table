@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:horizontal_data_table/refresh/hdt_refresh_controller.dart';
 import 'package:horizontal_data_table/refresh/pull_to_refresh/src/smart_refresher.dart';
 import 'package:horizontal_data_table/scroll/linked_scroll_controller/linked_scroll_controller.dart';
@@ -38,6 +39,8 @@ class TableControllers {
 
   void dispose() {
     removeHorizontalShadowListener();
+    removeHorizontalEndShadowListener();
+    removeVerticalShadowListener();
     fixedSideListViewScrollController.dispose();
     bidirectionalSideListViewScrollController.dispose();
     bidirectionalSideHorizontalScrollController.dispose();
@@ -96,6 +99,21 @@ class TableControllers {
     if (_horizontalShadowListener != null) {
       bidirectionalSideHorizontalScrollController
           .removeListener(_horizontalShadowListener!);
+    }
+  }
+
+  VoidCallback? _horizontalEndShadowListener;
+
+  void addHorizontalEndShadowListener(VoidCallback? horizontalEndShadowListener) {
+    _horizontalEndShadowListener = horizontalEndShadowListener;
+    bidirectionalSideHorizontalScrollController
+        .addListener(horizontalEndShadowListener!);
+  }
+
+  void removeHorizontalEndShadowListener() {
+    if (_horizontalEndShadowListener != null) {
+      bidirectionalSideHorizontalScrollController
+          .removeListener(_horizontalEndShadowListener!);
     }
   }
 

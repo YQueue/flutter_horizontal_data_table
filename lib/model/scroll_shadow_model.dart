@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 class ScrollShadowModel extends ChangeNotifier {
   double _verticalOffset = 0.0;
   double _horizontalOffset = 0.0;
+  bool _floatingHeaderShadow = false;
 
   double get verticalOffset => _verticalOffset;
 
@@ -15,6 +16,12 @@ class ScrollShadowModel extends ChangeNotifier {
 
   set horizontalOffset(double value) {
     _horizontalOffset = value;
+    notifyListeners();
+  }
+
+  bool get floatingHeaderShadow => _floatingHeaderShadow;
+  set floatingHeaderShadow(bool value) {
+    _floatingHeaderShadow = value;
     notifyListeners();
   }
 

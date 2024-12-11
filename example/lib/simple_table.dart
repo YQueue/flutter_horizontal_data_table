@@ -30,6 +30,8 @@ class _SimpleTablePageState extends State<SimpleTablePage> {
         rightHandSideColumnWidth: 600,
         isFixedHeader: true,
         headerWidgets: _getTitleWidget(),
+        headerEndFloatingWidget: _getFloatingWidget(),
+        headerEndFloatingWidgetMargin: const EdgeInsets.only(right: 16),
         leftSideItemBuilder: _generateFirstColumnRow,
         rightSideItemBuilder: _generateRightHandSideColumnRow,
         itemCount: widget.user.userInfo.length,
@@ -37,6 +39,16 @@ class _SimpleTablePageState extends State<SimpleTablePage> {
         rightHandSideColBackgroundColor: const Color(0xFFFFFFFF),
         itemExtent: 55,
       ),
+    );
+  }
+
+  Widget _getFloatingWidget() {
+    return Container(
+      width: 56,
+      height: 56,
+      alignment: Alignment.center,
+      color: Colors.white,
+      child: IconButton(onPressed: () {}, icon: const Icon(Icons.expand)),
     );
   }
 

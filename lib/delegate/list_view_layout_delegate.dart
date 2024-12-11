@@ -121,6 +121,7 @@ class ListViewLayoutDelegate extends MultiChildLayoutDelegate {
 
 enum ListViewLayout {
   Header,
+  HeaderEndShadow,
   ListView,
   Shadow,
   Divider,
