@@ -56,6 +56,12 @@ class HorizontalDataTable extends StatefulWidget {
   final BoxShadow? headerEndFloatingWidgetShadow;
   final EdgeInsets? headerEndFloatingWidgetMargin;
 
+  /// Expand the right column to fill the rest of the view width if the total
+  /// width (left column and right column) didn't fill the whole view width.
+  final bool expandRightColumn;
+  /// The view width, when not specified screen width will be used.
+  final double? viewWidth;
+
   ///if isFixedFooter==true,
   ///HorizontalDataTable.footerWidgets[0] as the fixed side footer
   ///
@@ -83,6 +89,8 @@ class HorizontalDataTable extends StatefulWidget {
   final double elevation;
   final Color elevationColor;
 
+  /// The background for the table view, including area outside of the scrollables
+  final Color? backgroundColor;
   final Color fixedSideColBackgroundColor;
   final Color bidirectionalSideColBackgroundColor;
 
@@ -162,7 +170,10 @@ class HorizontalDataTable extends StatefulWidget {
     required double leftHandSideColumnWidth,
     required double rightHandSideColumnWidth,
     this.tableHeight,
+    this.backgroundColor,
     this.isFixedHeader = false,
+    this.expandRightColumn = true,
+    this.viewWidth,
     this.headerWidgets,
     this.headerEndFloatingWidget,
     this.headerEndFloatingWidgetShadow,
@@ -253,6 +264,9 @@ class HorizontalDataTable extends StatefulWidget {
     required double leftHandSideColumnWidth,
     required double rightHandSideColumnWidth,
     double? tableHeight,
+    Color? backgroundColor,
+    bool expandRightColumn = true,
+    double? viewWidth,
     bool isFixedHeader = false,
     List<Widget>? headerWidgets,
     Widget? headerEndFloatingWidget,
@@ -295,6 +309,9 @@ class HorizontalDataTable extends StatefulWidget {
           leftHandSideColumnWidth: rightHandSideColumnWidth,
           rightHandSideColumnWidth: leftHandSideColumnWidth,
           tableHeight: tableHeight,
+          backgroundColor: backgroundColor,
+          expandRightColumn: expandRightColumn,
+          viewWidth: viewWidth,
           isFixedHeader: isFixedHeader,
           headerWidgets: headerWidgets,
           headerEndFloatingWidget: headerEndFloatingWidget,
@@ -340,11 +357,27 @@ class HorizontalDataTable extends StatefulWidget {
   }
 }
 
-class _HorizontalDataTableState extends State<HorizontalDataTable> {
+class _HorizontalDataTableState extends State<HorizontalDataTable>
+    with WidgetsBindingObserver {
   late TableControllers _tableControllers;
   ScrollShadowModel _scrollShadowModel = ScrollShadowModel();
 
   bool _horizontalScrolledToEnd = false;
+
+  double get rightSideColumnWidth {
+    final totalWidth = widget.fixedSideColumnWidth +
+        widget.bidirectionalSideColumnWidth;
+    final viewWidth = widget.viewWidth ?? MediaQuery.sizeOf(context).width;
+    // Expand right side column to fill the rest view
+    if (widget.expandRightColumn && totalWidth < viewWidth) {
+      return viewWidth - widget.fixedSideColumnWidth;
+    }
+    return widget.bidirectionalSideColumnWidth;
+  }
+
+  /// Default to [ClampingScrollPhysics] to avoid showing background color after overscroll
+  ScrollPhysics get horizontalScrollPhysics =>
+      widget.horizontalScrollPhysics ?? ClampingScrollPhysics();
 
   @override
   void initState() {
@@ -386,6 +419,8 @@ class _HorizontalDataTableState extends State<HorizontalDataTable> {
           _tableControllers.bidirectionalSideListViewScrollController,
           _tableControllers.bidirectionalSideHorizontalScrollController);
     }
+
+    WidgetsBinding.instance.addObserver(this);
   }
 
   void _horizontalScrollEndListener(ScrollController controller,
@@ -400,8 +435,21 @@ class _HorizontalDataTableState extends State<HorizontalDataTable> {
   }
 
   @override
+  void didChangeMetrics() {
+    if (widget.isFixedHeader) {
+      final controller =
+          _tableControllers.bidirectionalSideHeaderHorizontalScrollController;
+      // Update horizontal scroll state after dimensions changed
+      if (controller != null) {
+        _horizontalScrollEndListener(controller);
+      }
+    }
+  }
+
+  @override
   void dispose() {
     _tableControllers.dispose();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
@@ -441,7 +489,7 @@ class _HorizontalDataTableState extends State<HorizontalDataTable> {
         LayoutId(
           id: BaseLayoutView.FixedColumnListView,
           child: Container(
-            color: widget.fixedSideColBackgroundColor,
+            color: widget.backgroundColor,
             child: _getFixedSideHeaderScrollColumn(
               height: height,
               listViewWidth: widget.fixedSideColumnWidth,
@@ -458,7 +506,7 @@ class _HorizontalDataTableState extends State<HorizontalDataTable> {
         LayoutId(
           id: BaseLayoutView.BiDirectionScrollListView,
           child: Container(
-            color: widget.bidirectionalSideColBackgroundColor,
+            color: widget.backgroundColor,
             child: _getBidirectionalSideHeaderScrollColumn(
               height: height,
               listViewWidth: width - widget.fixedSideColumnWidth,
@@ -620,7 +668,7 @@ class _HorizontalDataTableState extends State<HorizontalDataTable> {
             child: Stack(
               children: [
                 SingleChildScrollView(
-                  physics: widget.horizontalScrollPhysics,
+                  physics: horizontalScrollPhysics,
                   controller: _tableControllers
                       .bidirectionalSideHeaderHorizontalScrollController!,
                   scrollDirection: Axis.horizontal,
@@ -697,12 +745,12 @@ class _HorizontalDataTableState extends State<HorizontalDataTable> {
                 return false;
               },
               child: SingleChildScrollView(
-                physics: widget.horizontalScrollPhysics,
+                physics: horizontalScrollPhysics,
                 controller: _tableControllers
                     .bidirectionalSideHorizontalScrollController,
                 scrollDirection: Axis.horizontal,
                 child: Container(
-                  width: widget.bidirectionalSideColumnWidth,
+                  width: rightSideColumnWidth,
                   child: listView,
                 ),
               ),
@@ -713,7 +761,7 @@ class _HorizontalDataTableState extends State<HorizontalDataTable> {
           LayoutId(
             id: ListViewLayout.Footer,
             child: SingleChildScrollView(
-              physics: widget.horizontalScrollPhysics,
+              physics: horizontalScrollPhysics,
               controller: _tableControllers
                   .bidirectionalSideFooterHorizontalScrollController!,
               scrollDirection: Axis.horizontal,
@@ -811,42 +859,45 @@ class _HorizontalDataTableState extends State<HorizontalDataTable> {
       IndexedWidgetBuilder? indexedWidgetBuilder,
       int itemCount,
       [List<Widget>? children]) {
-    return SmartRefresher(
-      controller: _tableControllers.bidirectionalSideRefreshController,
-      enablePullDown: widget.enablePullToRefresh,
-      enablePullUp: widget.enablePullToLoadNewData,
-      onRefresh: () async {
-        if (widget.onRefresh != null) {
-          widget.htdRefreshController?.requestRefresh(
-              _tableControllers.bidirectionalSideRefreshController);
+    return Container(
+      color: widget.bidirectionalSideColBackgroundColor,
+      child: SmartRefresher(
+        controller: _tableControllers.bidirectionalSideRefreshController,
+        enablePullDown: widget.enablePullToRefresh,
+        enablePullUp: widget.enablePullToLoadNewData,
+        onRefresh: () async {
+          if (widget.onRefresh != null) {
+            widget.htdRefreshController?.requestRefresh(
+                _tableControllers.bidirectionalSideRefreshController);
 
-          /// i have no choice, since the status of load and refresh not so reliable
-          /// the 100ms is for
-          /// [1] waiting the 50ms of pull-to-refresh package nestscrollview handling
-          /// [2] ensure 2 refresh controller status is stable
-          await Future.delayed(const Duration(milliseconds: 100), () {
-            widget.onRefresh!();
-          });
-        }
-      },
-      onLoading: () async {
-        if (widget.onLoad != null) {
-          widget.htdRefreshController?.requestLoading(
-              _tableControllers.bidirectionalSideRefreshController);
+            /// i have no choice, since the status of load and refresh not so reliable
+            /// the 100ms is for
+            /// [1] waiting the 50ms of pull-to-refresh package nestscrollview handling
+            /// [2] ensure 2 refresh controller status is stable
+            await Future.delayed(const Duration(milliseconds: 100), () {
+              widget.onRefresh!();
+            });
+          }
+        },
+        onLoading: () async {
+          if (widget.onLoad != null) {
+            widget.htdRefreshController?.requestLoading(
+                _tableControllers.bidirectionalSideRefreshController);
 
-          /// same reason as the onRefresh 100ms delay
-          await Future.delayed(const Duration(milliseconds: 100), () {
-            widget.onLoad!();
-          });
-        }
-      },
-      header: widget.refreshIndicator,
-      footer: widget.loadIndicator,
-      child: _getListView(
-        scrollController,
-        indexedWidgetBuilder,
-        itemCount,
-        children,
+            /// same reason as the onRefresh 100ms delay
+            await Future.delayed(const Duration(milliseconds: 100), () {
+              widget.onLoad!();
+            });
+          }
+        },
+        header: widget.refreshIndicator,
+        footer: widget.loadIndicator,
+        child: _getListView(
+          scrollController,
+          indexedWidgetBuilder,
+          itemCount,
+          children,
+        ),
       ),
     );
   }
@@ -854,37 +905,40 @@ class _HorizontalDataTableState extends State<HorizontalDataTable> {
   Widget _getPullToRefreshFixedSideListView(ScrollController scrollController,
       IndexedWidgetBuilder? indexedWidgetBuilder, int itemCount,
       [List<Widget>? children]) {
-    return SmartRefresher(
-      controller: _tableControllers.fixedSideRefreshController,
-      enablePullDown: widget.enablePullToRefresh,
-      enablePullUp: widget.enablePullToLoadNewData,
-      header: widget.fixedSidePlaceHolderRefreshIndicator ??
-          PlaceholderHeader(
-            height: widget.refreshIndicatorHeight,
-          ),
-      footer: widget.fixedSidePlaceHolderLoadIndicator ??
-          PlaceholderFooter(
-            height: widget.loadIndicator?.height ?? 60.0,
-          ),
-      onRefresh: () {
-        if (widget.onRefresh != null) {
-          widget.htdRefreshController?.requestRefresh(
-            _tableControllers.fixedSideRefreshController,
-          );
-        }
-      },
-      onLoading: () {
-        if (widget.onLoad != null) {
-          widget.htdRefreshController?.requestLoading(
-            _tableControllers.fixedSideRefreshController,
-          );
-        }
-      },
-      child: _getListView(
-        scrollController,
-        indexedWidgetBuilder,
-        itemCount,
-        children,
+    return Container(
+      color: widget.fixedSideColBackgroundColor,
+      child: SmartRefresher(
+        controller: _tableControllers.fixedSideRefreshController,
+        enablePullDown: widget.enablePullToRefresh,
+        enablePullUp: widget.enablePullToLoadNewData,
+        header: widget.fixedSidePlaceHolderRefreshIndicator ??
+            PlaceholderHeader(
+              height: widget.refreshIndicatorHeight,
+            ),
+        footer: widget.fixedSidePlaceHolderLoadIndicator ??
+            PlaceholderFooter(
+              height: widget.loadIndicator?.height ?? 60.0,
+            ),
+        onRefresh: () {
+          if (widget.onRefresh != null) {
+            widget.htdRefreshController?.requestRefresh(
+              _tableControllers.fixedSideRefreshController,
+            );
+          }
+        },
+        onLoading: () {
+          if (widget.onLoad != null) {
+            widget.htdRefreshController?.requestLoading(
+              _tableControllers.fixedSideRefreshController,
+            );
+          }
+        },
+        child: _getListView(
+          scrollController,
+          indexedWidgetBuilder,
+          itemCount,
+          children,
+        ),
       ),
     );
   }

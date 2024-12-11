@@ -15,6 +15,9 @@ class SimpleTablePage extends StatefulWidget {
 }
 
 class _SimpleTablePageState extends State<SimpleTablePage> {
+
+  static const Color backgroundColor = Color(0xFFE7E6EA);
+
   @override
   void initState() {
     widget.user.initData(20);
@@ -27,11 +30,12 @@ class _SimpleTablePageState extends State<SimpleTablePage> {
       appBar: AppBar(title: const Text('Simple Table')),
       body: HorizontalDataTable(
         leftHandSideColumnWidth: 100,
-        rightHandSideColumnWidth: 600,
+        rightHandSideColumnWidth: 900,
+        horizontalScrollPhysics: const ClampingScrollPhysics(),
         isFixedHeader: true,
         headerWidgets: _getTitleWidget(),
+        backgroundColor: backgroundColor,
         headerEndFloatingWidget: _getFloatingWidget(),
-        headerEndFloatingWidgetMargin: const EdgeInsets.only(right: 16),
         leftSideItemBuilder: _generateFirstColumnRow,
         rightSideItemBuilder: _generateRightHandSideColumnRow,
         itemCount: widget.user.userInfo.length,
@@ -46,8 +50,7 @@ class _SimpleTablePageState extends State<SimpleTablePage> {
     return Container(
       width: 56,
       height: 56,
-      alignment: Alignment.center,
-      color: Colors.white,
+      color: backgroundColor,
       child: IconButton(onPressed: () {}, icon: const Icon(Icons.expand)),
     );
   }
@@ -55,9 +58,9 @@ class _SimpleTablePageState extends State<SimpleTablePage> {
   List<Widget> _getTitleWidget() {
     return [
       _getTitleItemWidget('Name', 100),
-      _getTitleItemWidget('Status', 100),
-      _getTitleItemWidget('Phone', 200),
-      _getTitleItemWidget('Register', 100),
+      _getTitleItemWidget('Status', 200),
+      _getTitleItemWidget('Phone', 300),
+      _getTitleItemWidget('Register', 200),
       _getTitleItemWidget('Termination', 200),
     ];
   }
@@ -68,6 +71,7 @@ class _SimpleTablePageState extends State<SimpleTablePage> {
       height: 56,
       padding: const EdgeInsets.fromLTRB(5, 0, 0, 0),
       alignment: Alignment.centerLeft,
+      color: backgroundColor,
       child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
     );
   }
