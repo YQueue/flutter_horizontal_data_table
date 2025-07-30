@@ -8,7 +8,7 @@ class TableControllers {
   late LinkedScrollControllerGroup _controllersGroup;
   late ScrollController fixedSideListViewScrollController;
   late ScrollController bidirectionalSideListViewScrollController;
-
+  late ScrollController manageSectionsScrollController;
   late LinkedScrollControllerGroup _horizontalControllersGroup;
   late ScrollController bidirectionalSideHorizontalScrollController;
   ScrollController? bidirectionalSideHeaderHorizontalScrollController;
@@ -43,6 +43,7 @@ class TableControllers {
     removeVerticalShadowListener();
     fixedSideListViewScrollController.dispose();
     bidirectionalSideListViewScrollController.dispose();
+    manageSectionsScrollController.dispose();
     bidirectionalSideHorizontalScrollController.dispose();
     if (isFixedHeader) {
       bidirectionalSideHeaderHorizontalScrollController?.dispose();
@@ -56,6 +57,7 @@ class TableControllers {
     _controllersGroup = LinkedScrollControllerGroup();
     fixedSideListViewScrollController = _controllersGroup.addAndGet();
     bidirectionalSideListViewScrollController = _controllersGroup.addAndGet();
+    manageSectionsScrollController = _controllersGroup.addAndGet();
   }
 
   void _initBidirectionalSideHorizontalScrollController() {
@@ -104,7 +106,8 @@ class TableControllers {
 
   VoidCallback? _horizontalEndShadowListener;
 
-  void addHorizontalEndShadowListener(VoidCallback? horizontalEndShadowListener) {
+  void addHorizontalEndShadowListener(
+      VoidCallback? horizontalEndShadowListener) {
     _horizontalEndShadowListener = horizontalEndShadowListener;
     bidirectionalSideHorizontalScrollController
         .addListener(horizontalEndShadowListener!);
@@ -123,12 +126,14 @@ class TableControllers {
     _verticalShadowListener = verticalShadowListener;
     bidirectionalSideListViewScrollController
         .addListener(_verticalShadowListener!);
+    manageSectionsScrollController.addListener(_verticalShadowListener!);
   }
 
   void removeVerticalShadowListener() {
     if (_verticalShadowListener != null) {
       bidirectionalSideListViewScrollController
           .removeListener(_verticalShadowListener!);
+      manageSectionsScrollController.removeListener(_verticalShadowListener!);
     }
   }
 }
