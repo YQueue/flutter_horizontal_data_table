@@ -480,6 +480,7 @@ class _HorizontalDataTableState extends State<HorizontalDataTable>
       child: ChangeNotifierProvider<ScrollShadowModel>(
         create: (context) => _scrollShadowModel,
         child: SafeArea(
+          // Disable top safe area to prevent double padding when used with TabBar/AppBar
           top: false,
           child: LayoutBuilder(
             builder: (context, boxConstraint) {
