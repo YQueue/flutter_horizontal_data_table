@@ -28,6 +28,9 @@ import 'scroll/custom_scroll_bar.dart';
 typedef void OnScrollControllerReady(
     ScrollController verticalController, ScrollController horizontalController);
 
+typedef IndexedHasShadowWidgetBuilder = Widget Function(
+    BuildContext context, int index, bool hasShadow);
+
 ///
 /// For sorting issue, will based on the header fixed widget for flexible handling, suggest using [Button] to control the data sorting
 ///
@@ -59,6 +62,7 @@ class HorizontalDataTable extends StatefulWidget {
   /// Expand the right column to fill the rest of the view width if the total
   /// width (left column and right column) didn't fill the whole view width.
   final bool expandRightColumn;
+
   /// The view width, when not specified screen width will be used.
   final double? viewWidth;
 
@@ -166,6 +170,12 @@ class HorizontalDataTable extends StatefulWidget {
   ///When it is non-null, SliverFixedExtentList is used in [ListView].
   final double? itemExtent;
 
+  final bool enableStickyTableActions;
+  final double stickyTableActionsWidth;
+  final IndexedHasShadowWidgetBuilder? stickyTableActionsItemBuilder;
+  final Alignment stickyTableActionsAlignment;
+  final EdgeInsets? tableActionsListViewPadding;
+
   const HorizontalDataTable({
     required double leftHandSideColumnWidth,
     required double rightHandSideColumnWidth,
@@ -212,6 +222,11 @@ class HorizontalDataTable extends StatefulWidget {
     this.onFixedHeaderScrollableStateChanged,
     this.enableRTL = false,
     this.itemExtent,
+    this.enableStickyTableActions = false,
+    this.stickyTableActionsWidth = 0,
+    this.stickyTableActionsItemBuilder,
+    this.stickyTableActionsAlignment = Alignment.centerRight,
+    this.tableActionsListViewPadding,
   })  : this.fixedSideColumnWidth = leftHandSideColumnWidth,
         this.bidirectionalSideColumnWidth = rightHandSideColumnWidth,
         this.fixedSideChildren = leftSideChildren,
@@ -258,7 +273,12 @@ class HorizontalDataTable extends StatefulWidget {
         assert(
             (enablePullToLoadNewData && loadIndicator != null) ||
                 !enablePullToLoadNewData,
-            'loadIndicator must not be null if pull to load is enabled');
+            'loadIndicator must not be null if pull to load is enabled'),
+        assert(
+            stickyTableActionsItemBuilder == null || enableStickyTableActions,
+            'enableStickyTableActions must be true if stickyTableActionsItemBuilder is provided'),
+        assert(stickyTableActionsWidth == 0 || enableStickyTableActions,
+            'enableStickyTableActions must be true if stickyTableActionsWidth is set');
 
   HorizontalDataTable.rtl({
     required double leftHandSideColumnWidth,
@@ -365,8 +385,8 @@ class _HorizontalDataTableState extends State<HorizontalDataTable>
   bool _horizontalScrolledToEnd = false;
 
   double get rightSideColumnWidth {
-    final totalWidth = widget.fixedSideColumnWidth +
-        widget.bidirectionalSideColumnWidth;
+    final totalWidth =
+        widget.fixedSideColumnWidth + widget.bidirectionalSideColumnWidth;
     final viewWidth = widget.viewWidth ?? MediaQuery.sizeOf(context).width;
     // Expand right side column to fill the rest view
     if (widget.expandRightColumn && totalWidth < viewWidth) {
@@ -460,6 +480,8 @@ class _HorizontalDataTableState extends State<HorizontalDataTable>
       child: ChangeNotifierProvider<ScrollShadowModel>(
         create: (context) => _scrollShadowModel,
         child: SafeArea(
+          // Disable top safe area to prevent double padding when used with TabBar/AppBar
+          top: false,
           child: LayoutBuilder(
             builder: (context, boxConstraint) {
               late double maxHeight;
@@ -744,15 +766,37 @@ class _HorizontalDataTableState extends State<HorizontalDataTable>
 
                 return false;
               },
-              child: SingleChildScrollView(
-                physics: horizontalScrollPhysics,
-                controller: _tableControllers
-                    .bidirectionalSideHorizontalScrollController,
-                scrollDirection: Axis.horizontal,
-                child: Container(
-                  width: rightSideColumnWidth,
-                  child: listView,
-                ),
+              child: Stack(
+                children: [
+                  SingleChildScrollView(
+                    physics: horizontalScrollPhysics,
+                    controller: _tableControllers
+                        .bidirectionalSideHorizontalScrollController,
+                    scrollDirection: Axis.horizontal,
+                    child: Container(
+                      width: rightSideColumnWidth,
+                      child: listView,
+                    ),
+                  ),
+                  if (widget.enableStickyTableActions &&
+                      widget.stickyTableActionsItemBuilder != null &&
+                      widget.stickyTableActionsWidth != 0)
+                    Align(
+                      alignment: widget.stickyTableActionsAlignment,
+                      child: Selector<ScrollShadowModel, bool>(
+                          selector: (context, floatingHeaderShadow) {
+                        return _scrollShadowModel.floatingHeaderShadow;
+                      }, builder: (context, hasShadow, child) {
+                        return _tableActionsListView(
+                          _tableControllers.manageSectionsScrollController,
+                          widget.stickyTableActionsItemBuilder!,
+                          widget.itemCount,
+                          widget.stickyTableActionsWidth,
+                          hasShadow,
+                        );
+                      }),
+                    ),
+                ],
               ),
             ),
           ),
@@ -852,6 +896,27 @@ class _HorizontalDataTableState extends State<HorizontalDataTable>
         },
       );
     }
+  }
+
+  Widget _tableActionsListView(
+      ScrollController scrollController,
+      IndexedHasShadowWidgetBuilder indexedWidgetBuilder,
+      int itemCount,
+      double rightStickyTableActionsWidth,
+      bool hasShadow) {
+    return SizedBox(
+      width: rightStickyTableActionsWidth,
+      child: ListView.builder(
+        padding: widget.tableActionsListViewPadding,
+        physics: widget.scrollPhysics,
+        controller: scrollController,
+        itemCount: itemCount,
+        itemBuilder: (context, index) {
+          return indexedWidgetBuilder(context, index, hasShadow);
+        },
+        itemExtent: widget.itemExtent,
+      ),
+    );
   }
 
   Widget _getPullToRefreshBidirectionalSideListView(
